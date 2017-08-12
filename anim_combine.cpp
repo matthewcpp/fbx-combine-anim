@@ -1,8 +1,12 @@
 #include <iostream>
+#include <string>
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
 
 #include <fbxsdk.h>
 
 FbxScene* CreateSceneFromFile(const char* fileName, FbxManager* fbxManager);
+bool ExportScene(FbxScene* scene, FbxManager* fbxManager, const char* path);
 void CreateAnimations(FbxScene* destScene, FbxScene* srcScene);
 
 int main(int argc, char** argv) {
@@ -11,52 +15,72 @@ int main(int argc, char** argv) {
 	FbxScene* masterScene = nullptr;
 
 	FbxTime::SetGlobalTimeMode(FbxTime::eFrames60);
-	
 
-	for (int i = 1; i < argc; i++) {
-		std::cout << "Loading Scene: " << argv[i] << std::endl;
-		FbxScene* scene = CreateSceneFromFile(argv[i], fbxManager);
+	for (auto& p : fs::directory_iterator(argv[1])){
+		if (fs::is_regular_file(p)) {
+			std::string pathStr = p.path().generic_string();
 
-		if (!masterScene) {
-			masterScene = scene;
-		}
-		else {
-			CreateAnimations(masterScene, scene);
+			FbxScene* scene = CreateSceneFromFile(pathStr.c_str(), fbxManager);
+
+			if (!masterScene) {
+				masterScene = scene;
+			}
+			else {
+				CreateAnimations(masterScene, scene);
+			}
 		}
 	}
 
-	FbxIOSettings* ioSettings = FbxIOSettings::Create(fbxManager, IOSROOT);
-	ioSettings->SetBoolProp(EXP_FBX_EMBEDDED, true);
-
-	FbxExporter* exporter = FbxExporter::Create(fbxManager, "");
-	exporter->Initialize("test_out.fbx", -1, ioSettings);
-	exporter->SetFileExportVersion(FBX_2014_00_COMPATIBLE);
-	exporter->Export(masterScene);
-	exporter->Destroy();
-		
+	std::string outputPath = (argc > 2) ? argv[2] : "output.fbx";
+	ExportScene(masterScene, fbxManager, outputPath.c_str());
+	
 	fbxManager->Destroy();
 
 	return 0;
 }
 
 FbxScene* CreateSceneFromFile(const char* fileName, FbxManager* fbxManager) {
+	std::cout << "Loading Scene: " << fileName << std::endl;
 	FbxScene* scene = FbxScene::Create(fbxManager, fileName);
 
 	FbxImporter* importer = FbxImporter::Create(fbxManager, "");
-	const bool result = importer->Initialize(fileName, -1, fbxManager->GetIOSettings());
+	bool result = importer->Initialize(fileName, -1, fbxManager->GetIOSettings());
 
 	if (result) {
-		importer->Import(scene);
+		result = importer->Import(scene);
 	}
 	else {
 		FbxString error = importer->GetStatus().GetErrorString();
-		FBXSDK_printf("Call to FbxImporter::Initialize() failed.\n");
-		FBXSDK_printf("Error returned: %s\n\n", error.Buffer());
+		std::cout << "FBX Import Failed: " << error.Buffer() << std::endl;
 	}
 
 	importer->Destroy();
 
 	return scene;
+}
+
+bool ExportScene(FbxScene* scene, FbxManager* fbxManager, const char* path) {
+	std::cout << "Exporting Scene: " << path << std::endl;
+
+	FbxIOSettings* ioSettings = FbxIOSettings::Create(fbxManager, IOSROOT);
+	ioSettings->SetBoolProp(EXP_FBX_EMBEDDED, true);
+
+	FbxExporter* exporter = FbxExporter::Create(fbxManager, "");
+	bool result = exporter->Initialize(path, -1, ioSettings);
+
+	if (result) {
+		exporter->SetFileExportVersion(FBX_2014_00_COMPATIBLE);
+		result = exporter->Export(scene);
+	}
+
+	if (!result) {
+		FbxString error = exporter->GetStatus().GetErrorString();
+		std::cout << "FBX Export Failed: " << error.Buffer() << std::endl;
+	}
+
+	exporter->Destroy();
+
+	return result;
 }
 
 void CopyKeys(FbxAnimCurve* destCurve, FbxAnimCurve* srcCurve) {
