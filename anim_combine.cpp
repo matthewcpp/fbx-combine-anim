@@ -25,8 +25,11 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	FbxIOSettings* ioSettings = FbxIOSettings::Create(fbxManager, IOSROOT);
+	ioSettings->SetBoolProp(EXP_FBX_EMBEDDED, true);
+
 	FbxExporter* exporter = FbxExporter::Create(fbxManager, "");
-	exporter->Initialize("test_out.fbx");
+	exporter->Initialize("test_out.fbx", -1, ioSettings);
 	exporter->SetFileExportVersion(FBX_2014_00_COMPATIBLE);
 	exporter->Export(masterScene);
 	exporter->Destroy();
