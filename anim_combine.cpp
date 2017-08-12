@@ -4,15 +4,11 @@
 #include <fstream>
 #include <vector>
 
-#define ANIM_OFFSET 1.0 / 60.0
-
-
 FbxScene* CreateSceneFromFile(const char* fileName, FbxManager* fbxManager);
-void AppendAnimations(FbxScene* destScene, FbxScene* srcScene, const FbxTime& destStartTime);
+void AppendAnimations(FbxScene* destScene, FbxScene* srcScene);
 void DebugAnimInfo(FbxScene* scene);
 void DebugKeys(FbxAnimLayer* layer, FbxNode* node, std::ofstream& debugLog);
 double DetermineAnimTime(FbxScene* scene, int stack);
-void AddTime(FbxTime& fbxTime, double seconds);
 
 int main(int argc, char** argv) {
 
@@ -21,8 +17,6 @@ int main(int argc, char** argv) {
 
 	FbxTime::SetGlobalTimeMode(FbxTime::eFrames60);
 	
-	FbxTime destStartTime;
-	destStartTime.SetSecondDouble(0);
 
 	for (int i = 1; i < argc; i++) {
 		std::cout << "Loading Scene: " << argv[i] << std::endl;
@@ -30,12 +24,9 @@ int main(int argc, char** argv) {
 
 		if (!masterScene) {
 			masterScene = scene;
-			//AddTime(destStartTime, DetermineAnimTime(masterScene));
 		}
 		else {
-			//AddTime(destStartTime, ANIM_OFFSET);
-			AppendAnimations(masterScene, scene, destStartTime);
-			//AddTime(destStartTime, DetermineAnimTime(scene));
+			AppendAnimations(masterScene, scene);
 		}
 	}
 
@@ -72,14 +63,13 @@ FbxScene* CreateSceneFromFile(const char* fileName, FbxManager* fbxManager) {
 	return scene;
 }
 
-void CopyKeys(FbxAnimCurve* destCurve, FbxAnimCurve* srcCurve, const FbxTime& destStartTime) {
+void CopyKeys(FbxAnimCurve* destCurve, FbxAnimCurve* srcCurve) {
 	destCurve->KeyModifyBegin();
 
 	int srcKeyCount = srcCurve->KeyGetCount();
 
 	for (int i = 0; i < srcKeyCount; i++) {
-		FbxTime keyTime = destStartTime + srcCurve->KeyGetTime(i);
-		int keyIndex = destCurve->KeyAdd(keyTime);
+		int keyIndex = destCurve->KeyAdd(srcCurve->KeyGetTime(i));
 
 		destCurve->KeySetInterpolation(keyIndex, srcCurve->KeyGetInterpolation(i));
 		destCurve->KeySetValue(keyIndex, srcCurve->KeyGetValue(i));
@@ -88,7 +78,7 @@ void CopyKeys(FbxAnimCurve* destCurve, FbxAnimCurve* srcCurve, const FbxTime& de
 	destCurve->KeyModifyEnd();
 }
 
-void AppendCurves(FbxAnimLayer* destlayer, FbxNode* destNode, FbxAnimLayer* srclayer, FbxNode* srcNode, const FbxTime& destStartTime) {
+void AppendCurves(FbxAnimLayer* destlayer, FbxNode* destNode, FbxAnimLayer* srclayer, FbxNode* srcNode) {
 	FbxAnimCurve* srcCurveX = srcNode->LclTranslation.GetCurve(srclayer, FBXSDK_CURVENODE_COMPONENT_X, false);
 	FbxAnimCurve* srcCurveY = srcNode->LclTranslation.GetCurve(srclayer, FBXSDK_CURVENODE_COMPONENT_Y, false);
 	FbxAnimCurve* srcCurveZ = srcNode->LclTranslation.GetCurve(srclayer, FBXSDK_CURVENODE_COMPONENT_Z, false);
@@ -98,9 +88,9 @@ void AppendCurves(FbxAnimLayer* destlayer, FbxNode* destNode, FbxAnimLayer* srcl
 		FbxAnimCurve* destCurveY = destNode->LclTranslation.GetCurve(destlayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 		FbxAnimCurve* destCurveZ = destNode->LclTranslation.GetCurve(destlayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
-		CopyKeys(destCurveX, srcCurveX, destStartTime);
-		CopyKeys(destCurveY, srcCurveY, destStartTime);
-		CopyKeys(destCurveZ, srcCurveZ, destStartTime);
+		CopyKeys(destCurveX, srcCurveX);
+		CopyKeys(destCurveY, srcCurveY);
+		CopyKeys(destCurveZ, srcCurveZ);
 
 	}
 
@@ -113,9 +103,9 @@ void AppendCurves(FbxAnimLayer* destlayer, FbxNode* destNode, FbxAnimLayer* srcl
 		FbxAnimCurve* destCurveY = destNode->LclRotation.GetCurve(destlayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 		FbxAnimCurve* destCurveZ = destNode->LclRotation.GetCurve(destlayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
-		CopyKeys(destCurveX, srcCurveX, destStartTime);
-		CopyKeys(destCurveY, srcCurveY, destStartTime);
-		CopyKeys(destCurveZ, srcCurveZ, destStartTime);
+		CopyKeys(destCurveX, srcCurveX);
+		CopyKeys(destCurveY, srcCurveY);
+		CopyKeys(destCurveZ, srcCurveZ);
 
 	}
 
@@ -128,21 +118,21 @@ void AppendCurves(FbxAnimLayer* destlayer, FbxNode* destNode, FbxAnimLayer* srcl
 		FbxAnimCurve* destCurveY = destNode->LclScaling.GetCurve(destlayer, FBXSDK_CURVENODE_COMPONENT_Y, true);
 		FbxAnimCurve* destCurveZ = destNode->LclScaling.GetCurve(destlayer, FBXSDK_CURVENODE_COMPONENT_Z, true);
 
-		CopyKeys(destCurveX, srcCurveX, destStartTime);
-		CopyKeys(destCurveY, srcCurveY, destStartTime);
-		CopyKeys(destCurveZ, srcCurveZ, destStartTime);
+		CopyKeys(destCurveX, srcCurveX);
+		CopyKeys(destCurveY, srcCurveY);
+		CopyKeys(destCurveZ, srcCurveZ);
 
 	}
 
 
 	int childCount = srcNode->GetChildCount();
 	for (int i = 0; i < childCount; i++) {
-		AppendCurves(destlayer, destNode->GetChild(i), srclayer, srcNode->GetChild(i), destStartTime);
+		AppendCurves(destlayer, destNode->GetChild(i), srclayer, srcNode->GetChild(i));
 	}
 	
 }
 
-void AppendAnimations(FbxScene* destScene, FbxScene* srcScene, const FbxTime& destStartTime) {
+void AppendAnimations(FbxScene* destScene, FbxScene* srcScene) {
 	int srcStackCount = srcScene->GetSrcObjectCount<FbxAnimStack>();
 	for (int i = 0; i < srcStackCount; i++) {
 		FbxAnimStack* srcStack = srcScene->GetSrcObject<FbxAnimStack>(i);
@@ -154,7 +144,7 @@ void AppendAnimations(FbxScene* destScene, FbxScene* srcScene, const FbxTime& de
 		FbxAnimLayer* destLayer = FbxAnimLayer::Create(destScene, srcLayer->GetName());
 		destStack->AddMember(destLayer);
 
-		AppendCurves(destLayer, destScene->GetRootNode(), srcLayer, srcScene->GetRootNode(), destStartTime);
+		AppendCurves(destLayer, destScene->GetRootNode(), srcLayer, srcScene->GetRootNode());
 
 		destStack->LocalStop.Set(srcStack->LocalStop.Get());
 	}	
