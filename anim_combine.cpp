@@ -11,9 +11,8 @@ FbxScene* CreateSceneFromFile(const char* fileName, FbxManager* fbxManager);
 void AppendAnimations(FbxScene* destScene, FbxScene* srcScene, const FbxTime& destStartTime);
 void DebugAnimInfo(FbxScene* scene);
 void DebugKeys(FbxAnimLayer* layer, FbxNode* node, std::ofstream& debugLog);
-double DetermineAnimTime(FbxScene* scene);
+double DetermineAnimTime(FbxScene* scene, int stack);
 void AddTime(FbxTime& fbxTime, double seconds);
-void UpdateMasterAnimInfo(FbxScene* masterScene, const FbxTime& animTime);
 
 int main(int argc, char** argv) {
 
@@ -31,16 +30,15 @@ int main(int argc, char** argv) {
 
 		if (!masterScene) {
 			masterScene = scene;
-			AddTime(destStartTime, DetermineAnimTime(masterScene));
+			//AddTime(destStartTime, DetermineAnimTime(masterScene));
 		}
 		else {
-			AddTime(destStartTime, ANIM_OFFSET);
+			//AddTime(destStartTime, ANIM_OFFSET);
 			AppendAnimations(masterScene, scene, destStartTime);
-			AddTime(destStartTime, DetermineAnimTime(scene));
+			//AddTime(destStartTime, DetermineAnimTime(scene));
 		}
 	}
 
-	UpdateMasterAnimInfo(masterScene, destStartTime);
 	//DebugAnimInfo(masterScene);
 
 	FbxExporter* exporter = FbxExporter::Create(fbxManager, "");
@@ -52,12 +50,6 @@ int main(int argc, char** argv) {
 	fbxManager->Destroy();
 
 	return 0;
-}
-
-void UpdateMasterAnimInfo(FbxScene* masterScene, const FbxTime& animTime) {
-	FbxAnimStack* animStack = masterScene->GetSrcObject<FbxAnimStack>(0);
-	animStack->SetName("Animations");
-	animStack->LocalStop.Set(animTime);
 }
 
 FbxScene* CreateSceneFromFile(const char* fileName, FbxManager* fbxManager) {
@@ -151,10 +143,21 @@ void AppendCurves(FbxAnimLayer* destlayer, FbxNode* destNode, FbxAnimLayer* srcl
 }
 
 void AppendAnimations(FbxScene* destScene, FbxScene* srcScene, const FbxTime& destStartTime) {
-	FbxAnimLayer* destlayer = destScene->GetSrcObject<FbxAnimStack>(0)->GetSrcObject<FbxAnimLayer>(0);
-	FbxAnimLayer* srclayer = srcScene->GetSrcObject<FbxAnimStack>(0)->GetSrcObject<FbxAnimLayer>(0);
+	int srcStackCount = srcScene->GetSrcObjectCount<FbxAnimStack>();
+	for (int i = 0; i < srcStackCount; i++) {
+		FbxAnimStack* srcStack = srcScene->GetSrcObject<FbxAnimStack>(i);
+		FbxAnimLayer* srcLayer = srcStack->GetSrcObject<FbxAnimLayer>(0);
 
-	AppendCurves(destlayer, destScene->GetRootNode(), srclayer, srcScene->GetRootNode(), destStartTime);
+		destScene->CreateAnimStack(srcStack->GetName());
+		FbxAnimStack* destStack = destScene->GetSrcObject<FbxAnimStack>(destScene->GetSrcObjectCount<FbxAnimStack>() -1);
+
+		FbxAnimLayer* destLayer = FbxAnimLayer::Create(destScene, srcLayer->GetName());
+		destStack->AddMember(destLayer);
+
+		AppendCurves(destLayer, destScene->GetRootNode(), srcLayer, srcScene->GetRootNode(), destStartTime);
+
+		destStack->LocalStop.Set(srcStack->LocalStop.Get());
+	}	
 }
 
 
@@ -218,8 +221,8 @@ void DebugKeys(FbxAnimLayer* layer, FbxNode* node, std::ofstream& debugLog) {
 }
 
 
-double DetermineAnimTime(FbxScene* scene) {
-	FbxAnimLayer* layer = scene->GetSrcObject<FbxAnimStack>(0)->GetSrcObject<FbxAnimLayer>(0);
+double DetermineAnimTime(FbxScene* scene, int stack) {
+	FbxAnimLayer* layer = scene->GetSrcObject<FbxAnimStack>(stack)->GetSrcObject<FbxAnimLayer>(0);
 
 	std::vector<FbxNode*> nodes;
 	nodes.push_back(scene->GetRootNode());
