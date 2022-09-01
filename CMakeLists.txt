@@ -1,15 +1,25 @@
 cmake_minimum_required(VERSION 3.0)
 
-project("wmv-combine-anim" C CXX)
+if (DEFINED ENV{FBX_SDK_DIR})
+	set(fbx_sdk_root $ENV{FBX_SDK_DIR})
+elseif(DEFINED FBX_SDK_DIR)
+	set(fbx_sdk_root ${FBX_SDK_DIR})
+else()
+	message(FATAL_ERROR "Please set FBX_SDK_DIR environment variable or pass -DFBX_SDK_DIR on command line when configuring")
+endif()
 
-message("FBX_ROOT:" $ENV{FBX_ROOT})
+set(target_name fbx-anim-combine)
+project(${target_name} CXX)
 
-set(exe_name "wmv-combine-anim")
+message("Using FBX SDK:" ${fbx_sdk_root})
 
+set(${target_name} fbx-anim-combine)
 
-add_executable(${exe_name} ${CMAKE_CURRENT_SOURCE_DIR}/anim_combine.cpp)
+add_executable(${target_name} main.cpp)
+target_compile_features(${target_name} PRIVATE cxx_std_17)
+target_compile_definitions(${target_name} PRIVATE -DFBXSDK_SHARED)
+target_include_directories(${target_name} PRIVATE ${fbx_sdk_root}/include)
 
-include_directories($ENV{FBX_ROOT}/include)
-
-target_link_libraries( ${exe_name} debug $ENV{FBX_ROOT}/lib/vs2015/x86/debug/libfbxsdk-md.lib)
-target_link_libraries( ${exe_name} optimized $ENV{FBX_ROOT}/lib/vs2015/x86/release/libfbxsdk-md.lib)
+# Note: currently only setup for
+target_link_libraries( ${target_name} PRIVATE debug ${fbx_sdk_root}/lib/vs2019/x64/debug/libfbxsdk.lib)
+target_link_libraries( ${target_name} PRIVATE optimized ${fbx_sdk_root}/lib/vs2019/x64/release/libfbxsdk.lib)
