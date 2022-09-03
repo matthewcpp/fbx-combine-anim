@@ -7,4 +7,6 @@ Combine FBX files that were exported with a single animation each into a resulti
 
 ### Supported platforms
 
-This has currently been tested on Windows x64 with FBX SDK 2020.3.1
+This has currently been tested on the following platforms with FBX SDK 2020.3.1:
+- Windows x64
+- MacOS

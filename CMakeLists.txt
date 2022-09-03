@@ -17,9 +17,16 @@ set(${target_name} fbx-anim-combine)
 
 add_executable(${target_name} main.cpp)
 target_compile_features(${target_name} PRIVATE cxx_std_17)
-target_compile_definitions(${target_name} PRIVATE -DFBXSDK_SHARED)
 target_include_directories(${target_name} PRIVATE ${fbx_sdk_root}/include)
 
-# Note: currently only setup for
-target_link_libraries( ${target_name} PRIVATE debug ${fbx_sdk_root}/lib/vs2019/x64/debug/libfbxsdk.lib)
-target_link_libraries( ${target_name} PRIVATE optimized ${fbx_sdk_root}/lib/vs2019/x64/release/libfbxsdk.lib)
+if (APPLE)
+	target_link_libraries(${target_name} PRIVATE debug ${fbx_sdk_root}/lib/clang/debug/libfbxsdk.a)
+	target_link_libraries(${target_name} PRIVATE optimized ${fbx_sdk_root}/lib/clang/release/libfbxsdk.a)
+
+	target_link_libraries(${target_name} PRIVATE -lz -lxml2 -ldl -lpthread -liconv)
+	set_target_properties(${target_name} PROPERTIES LINK_FLAGS "-framework Cocoa")
+elseif(WIN32)
+	target_compile_definitions(${target_name} PRIVATE -DFBXSDK_SHARED)
+	target_link_libraries(${target_name} PRIVATE debug ${fbx_sdk_root}/lib/vs2019/x64/debug/libfbxsdk.lib)
+	target_link_libraries(${target_name} PRIVATE optimized ${fbx_sdk_root}/lib/vs2019/x64/release/libfbxsdk.lib)
+endif()
