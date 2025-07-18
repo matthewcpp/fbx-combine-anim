@@ -1,9 +1,10 @@
 # fbx-combine-anim
 Combine FBX files that were exported with a single animation each into a resulting file which contains all of them.
+For Example you could may upload a model to mixamo and download a number of fbx files with your animations.  This tool can turn those multiple files into a single file containing your character with all animations.
 
 ### Setup
 - Set `FBX_SDK_DIR` Environment variable to the root of your FBX SDK installation directory
-- Open the folder in VSCode and ensure CMake extension is installed.
+- Alternatively pass `-DFBX_SDK_DIR=/path/to/fbx_sdk` to CMake
 
 ### Supported platforms
 
